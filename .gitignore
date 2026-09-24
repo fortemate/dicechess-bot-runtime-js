@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+mise.local.toml
+local.settings.json
+*.key
+*.pem
+*.log
+.DS_Store
+/logs/
+/runs/
+/artifacts/
