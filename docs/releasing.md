@@ -27,8 +27,18 @@ engine's trust does not authorize this new package. For the first version:
      0.1.0-alpha.1 <approved-commit-sha> <manifest-integrity-from-job-summary>
    ```
 
-3. Publish that exact archive manually using the owner-only instructions below.
+3. The owner authenticates interactively and publishes the exact archive from the
+   extracted directory verified in step 2:
+
+   ```sh
+   npm publish /absolute/path/to/extracted-bundle/fortemate-dicechess-bot-runtime-0.1.0-alpha.1.tgz \
+     --ignore-scripts --access public --tag next --registry=https://registry.npmjs.org/
+   ```
+
+   Use the same extracted directory in both commands. Do not rebuild the package
+   or use the local fallback's `$release_dir` for this CI-artifact flow.
    This local bootstrap does not receive GitHub Actions OIDC provenance.
+
 4. Create GitHub environment **npm**, restrict deployment branches to `main`, and
    configure required reviewers. The workflow alone does not add these protections.
 5. In npm package settings, add a GitHub Actions Trusted Publisher:
