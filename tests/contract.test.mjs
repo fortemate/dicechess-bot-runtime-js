@@ -31,7 +31,7 @@ async function hmac(secret, message) {
   );
 }
 
-test("built entry exports the pinned contract without advertising a handler", () => {
+test("built entry exports the pinned contract", () => {
   assert.equal(SIGNATURE_HEADER, "x-dicechess-signature");
   assert.equal(TIMESTAMP_HEADER, "x-dicechess-timestamp");
   assert.equal(VERIFICATION_VERSION, 2);

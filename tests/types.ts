@@ -1,10 +1,17 @@
 import {
+  createWebhookHandler,
+  type WebhookHandlerOptions,
   type BotStrategy,
   type DecisionControl,
   type DrawDecisionContext,
   type MoveTree,
   type TurnContext,
 } from "@fortemate/dicechess-bot-runtime";
+import { createNodeListener } from "@fortemate/dicechess-bot-runtime/node";
+declare const options: WebhookHandlerOptions;
+const handler: (request: Request) => Promise<Response> =
+  createWebhookHandler(options);
+void createNodeListener(handler);
 
 const tree: MoveTree = { e2e4: { g1f3: {} } };
 const turn: TurnContext = {

@@ -23,8 +23,16 @@ try {
   assert.deepEqual(names, [
     "LICENSE",
     "README.md",
+    "dist/boundary.d.ts",
+    "dist/boundary.js",
+    "dist/handler.d.ts",
+    "dist/handler.js",
     "dist/index.d.ts",
     "dist/index.js",
+    "dist/node.d.ts",
+    "dist/node.js",
+    "dist/protocol.d.ts",
+    "dist/protocol.js",
     "package.json",
   ]);
   const consumer = join(temporary, "consumer");
@@ -55,6 +63,7 @@ try {
   assert.equal(metadata.type, "module");
   assert.equal(metadata.exports["."].types, "./dist/index.d.ts");
   assert.equal(metadata.exports["."].import, "./dist/index.js");
+  assert.equal(metadata.exports["./node"].import, "./dist/node.js");
   assert.equal(Object.keys(metadata.dependencies ?? {}).length, 0);
   await readFile(join(installed, "dist/index.d.ts"), "utf8");
 
@@ -62,12 +71,20 @@ try {
 if (runtime.VERIFICATION_VERSION !== 2 || runtime.CONTRACT_DELIVERY_TYPES.length !== 2) {
   throw new Error("Package entry contract mismatch");
 }
+const handler = runtime.createWebhookHandler({
+  keys: { active: "synthetic-package-test-key" },
+  limits: { timeoutMs: 1000, maxBodyBytes: 65536, maxTreeNodes: 100, maxTreeDepth: 8, maxConcurrentRequests: 4, maxCacheEntries: 8, cacheTtlMs: 1000 },
+  strategy: { onTurn() { throw new Error("Unauthenticated dispatch"); } },
+});
+const response = await handler(new Request("https://bot.invalid", { method: "POST", body: "{}" }));
+if (response.status !== 401 || (await response.json()).error !== "unauthorized") throw new Error("Package handler boundary mismatch");
 console.log("Isolated package consumer passed");
 `;
   const nodeEntry = join(consumer, "node-consumer.mjs");
   await writeFile(
     nodeEntry,
     'import * as runtime from "@fortemate/dicechess-bot-runtime";\n' +
+      'import { createNodeListener } from "@fortemate/dicechess-bot-runtime/node";\nif (typeof createNodeListener !== "function") throw new Error("Node export missing");\n' +
       assertion,
   );
   process.stdout.write(run(process.execPath, [nodeEntry], consumer));

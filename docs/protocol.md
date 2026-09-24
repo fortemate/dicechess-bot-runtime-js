@@ -1,7 +1,7 @@
 # Pinned webhook contract
 
-This is the specification for the upcoming JS handler, not a claim that it is
-implemented. The current package exports constants and types only.
+The portable handler implements the following contract. Offline tests are not
+evidence of a deployment, registration, or live game.
 
 ## Public references
 
@@ -27,109 +27,136 @@ implementations disagree.
 | `yourTurn`                | Seat matches activeSeat; dicePending is true                             | `{moves, offerDraw?, resign?}` |
 | `drawDecision`            | Seat matches activeSeat; dicePending is false; drawOffer.pending is true | `{acceptDraw, resign?}`        |
 
-The `draws` capability enables pre-roll draw decisions. Without an intentional
-callback, the planned JS handler explicitly declines. Offering a draw is a turn
-action and must obey `mayOfferDraw`. A missing/malformed optional permission must
-become false, not a truthy coercion. An explicit strategy resignation is distinct
-from a runtime failure.
+Without an onDrawDecision callback, the handler explicitly declines. Offering a
+draw requires mayOfferDraw exactly true. Explicit resignation belongs to the
+strategy; runtime failures never become resignation or another playing decision.
+Doubling is not emitted by the pinned server and is unsupported by this package.
+Unknown types never reach onTurn.
 
-The pinned JVM runtime also implements `doubleOpportunity` and `doubleDecision`,
-but the pinned server does not emit them. JS does not export or advertise their
-capability yet. Unknown delivery types must be rejected, never sent to onTurn.
-
-The pinned JVM/server retain legacy verification paths. The new JS handler will
-support signed v2 only; legacy or missing verification versions must fail rather
-than silently echo a nonce. This is an intentional narrower compatibility surface.
-
-**Adoption blocker to resolve in the handler milestone:** the pinned server's
-`Webhooks.wake` still sends a no-version verification envelope for catalog and
-showcase readiness, even for an existing registration. Rejecting legacy shapes
-therefore fails those probes after successful v2 setup too. Before migrating a
-consumer, explicitly resolve authenticated readiness-probe compatibility (the
-server signs wake deliveries with the stored key) or coordinate a server protocol
-change. Do not silently add unsigned acceptance to make readiness pass.
+**Readiness compatibility:** the pinned server's Webhooks.wake sends a no-version
+verification envelope even after v2 registration. By default JS rejects this.
+Setting `allowLegacyReadiness: true` explicitly accepts only fresh authenticated
+no-version verification using an active or pending key and a nonblank nonce,
+returning `{nonce}`. Explicit versions other than 2 remain unsupported, including
+1, null, and string-valued versions. This never enables unsigned registration.
+Consumer adoption must choose its readiness policy; no live readiness proof is
+claimed.
 
 ## Authentication
 
-Secrets are UTF-8 strings, even when they look hexadecimal. Incoming headers are
-case-insensitive `X-DiceChess-Timestamp` (integer Unix seconds) and
-`X-DiceChess-Signature` (lowercase hex HMAC-SHA256).
+Secrets are UTF-8 strings, even when they look hexadecimal. Header names are
+case-insensitive. X-DiceChess-Timestamp must be canonical nonnegative decimal
+integer Unix seconds within the safe integer range. X-DiceChess-Signature must
+be exactly 64 lowercase hexadecimal characters. Signs, fractions, exponent
+notation, duplicate header values, and uppercase signatures are rejected.
 
-Request signature input is `timestamp + "." + rawBody`. Authenticate the exact
-received bytes, not parsed/reformatted JSON. The reference freshness interval is
-inclusive plus/minus 300 seconds; parsing and boundary rejection require handler
-tests. Freshness alone is not delivery deduplication.
+Request signature input is `timestamp + "." + rawBody`. Authentication uses the
+exact received bytes, never reserialized JSON. Freshness is inclusive plus/minus
+300 seconds. Gameplay accepts configured active/pending keys during rotation;
+v2 activation authenticates with the pending key only.
 
-Gameplay verification accepts configured active/pending keys during rotation;
-v2 activation must use the pending key only. The activation proof input is
-`"dicechess-webhook-activate-v2\n" + rawBody`, with an actual LF in the prefix.
-
-V2 requires nonblank bot.team, bot.name, setupId, revision and a canonical,
+V2 requires nonblank bot.team, bot.name, setupId, revision and a canonical
 unpadded base64url nonce decoding to at least 16 bytes. The response echoes the
-nonce and supplies the domain-separated proof. Authentication failures never
-invoke a strategy.
+nonce and computes HMAC using the pending key over the actual LF-terminated
+prefix `"dicechess-webhook-activate-v2\n"` followed by raw body bytes.
+No authentication failure invokes a strategy.
 
-[Fixture provenance](../fixtures/README.md) records two different upstream v2
-vectors. Both are recomputed on Node and Deno; neither is renamed as the other's
-canonical vector.
+[Fixture provenance](../fixtures/README.md) records distinct server/JVM vectors.
 
-## Context and legal moves
+## Contexts, clocks, and legal turns
 
-The consumed wire subset is `{type,gameId,seat,state}`. Preserve state.version,
-state.dfen, activeSeat and dicePending. Other snapshot fields are not strategy
-inputs by default. Context types are readonly at compile time; this foundation
-does not perform parsing, copying, or freezing of network data.
+Consumed fields are gameId, seat, state.version, state.dfen, activeSeat, and
+dicePending. Contexts and nested clocks/trees are frozen at runtime, not merely
+readonly TypeScript types. No engine or model is imported.
 
-Wire clocks are `{white,black}` in milliseconds or null. Normalize them relative
-to the delivery seat as remainingMillis/opponentRemainingMillis. The optional
-Fischer increment is timeControl.Fischer.incrementSeconds multiplied by 1000;
-otherwise incrementMillis is null. Invalid optional increments fail closed;
-required clock numbers must be nonnegative safe integers.
+Required numeric fields are nonnegative safe integers represented on the wire
+as canonical decimal integer literals. Fractions and exponent forms cannot be
+rounded into valid fields. This deliberately rejects some numeric spellings and
+signed 64-bit values which JavaScript cannot represent exactly.
 
-The server/JVM use signed 64-bit versions. JS boundary validation must reject
-numbers outside Number.isSafeInteger rather than silently rounding them. This is
-an explicit limitation pending any future lossless-integer design.
+Absent/null clocks normalize to null; otherwise both white and black milliseconds
+are required. They become remainingMillis/opponentRemainingMillis relative to the
+bot's seat. Valid Fischer.incrementSeconds becomes incrementMillis; malformed or
+absent optional increments become null. The remaining clock clamps the whole
+request budget; it does not reset time already spent authenticating or reading.
 
-Legal moves use recursive `{uci: subtree}` objects. A non-root empty object is a
-leaf completing a turn; an empty root means no legal turn and server auto-pass.
-Shorter terminal paths remain valid. Never invent an empty selectable turn or
-prune the original tree.
+Legal trees are recursive `{uci: subtree}` records bounded by node count and
+depth. Root counts as a node at depth zero. Edges must be UCI-shaped strings.
+Every selected move sequence must reach an original leaf; prefixes, invented
+edges, and empty choices on a nonempty tree fail. Shorter terminal paths remain
+valid. Empty root returns `{moves: [], offerDraw: false}` without invoking strategy;
+the server owns auto-pass. Explicit resignation returns empty moves with resign.
 
-Absent/null legalMoves means unavailable, not empty. The JVM leaves an absent
-field unknown and fetches only explicit null when configured. The planned JS
-policy may resolve either absent or null via a configured fallback; this
-difference is explicit and must receive tests before implementation.
+Absent/null legalMoves means unavailable, not empty. With playApiBaseUrl configured,
+both trigger `GET /games/{encodedGameId}/moves` through injected/default fetch.
+Redirects are rejected; response bytes and tree size are bounded. Version and
+DFEN must match the original context and dicePending must be true. A mismatch is
+stale_context; failed, missing, or malformed retrieval is missing_legal_moves.
+No fallback failure becomes an empty tree.
 
-Fallback `GET /games/{id}/moves` returns
-`{version,dfen,dicePending,legalMoves}`. Accept it only when version and DFEN match
-the original delivery and dicePending is true. Missing, failed, malformed, or
-mismatching fetches cannot become `{}`. Validate returned tree structure and
-bound its size before exposing it.
+Draw contexts require six-field pre-roll DFEN and pending drawOffer. They expose
+neither legalMoves nor dice fields. DFEN otherwise remains opaque; this package
+does not validate game rules.
 
-Pre-roll draw contexts expose no legalMoves or dice-specific fields. DFEN remains
-opaque to this library; no engine is imported to interpret or regenerate it.
+## Deadlines and duplicate handling
 
-## Planned handler error contract
+All RuntimeLimits fields are explicit positive safe integers: timeoutMs,
+maxBodyBytes, maxTreeNodes, maxTreeDepth, maxConcurrentRequests, maxCacheEntries,
+and cacheTtlMs. There are no production tuning defaults. Timeout is limited to
+the platform timer range; maximum tree depth is 256.
 
-| Code                 | Meaning                                       | Gameplay action |
-| -------------------- | --------------------------------------------- | --------------- |
-| invalid_request      | Malformed envelope, context or unsafe numbers | None            |
-| unauthorized         | Invalid signature, key or freshness           | None            |
-| unsupported_delivery | Unknown event/capability/version              | None            |
-| missing_legal_moves  | Required tree unavailable                     | None            |
-| stale_context        | Fallback context does not match               | None            |
-| deadline_exceeded    | Delivery budget expired or work cancelled     | None            |
-| strategy_failed      | Callback failed or returned invalid output    | None            |
+One monotonic deadline covers body reading, authentication, fallback, and strategy.
+Callbacks receive a frozen control with signal and deadlineEpochMs. Request abort
+or expiration returns deadline_exceeded and late results cannot become success.
+Cancellation is cooperative: noncooperative callbacks cannot be forcibly stopped.
 
-These are exported type names, not exception classes or implemented responses.
-The handler milestone must specify/test HTTP status mapping against server retry
-behavior, duplicate handling, body limits, timeout enforcement, and safe messages.
-It must never turn a failure into random play, pass, resignation, or a late success.
+Each handler owns a bounded process-local cache keyed by gameId, seat, version,
+and event type. Decision fingerprints compare DFEN, increment, legal tree and
+draw permission where relevant; legal edges are normalized and ticking remaining
+clocks are excluded. Same-identity changed decision inputs produce stale_context.
+Identical in-flight deliveries share work; successful results remain for cacheTtlMs.
+Settled failures are removed for retry. Expired entries are pruned on lookup.
+A timed-out but unsettled dispatch retains its cache slot until actual work
+settles, bounding accumulation of callbacks that ignore cancellation.
+
+The concurrent-request limit bounds active HTTP handling; the cache-entry limit
+also bounds retained dispatch work. Capacity exhaustion is explicit. This cache
+is neither durable replay protection nor distributed exactly-once execution.
+Separate handlers/processes or TTL expiration can repeat a decision.
+
+## HTTP errors and retry semantics
+
+All handler errors are sanitized JSON `{error: code}` without exception messages,
+keys, or request data. Responses are JSON with Cache-Control: no-store.
+
+| Code                 | HTTP | Meaning                                                      |
+| -------------------- | ---- | ------------------------------------------------------------ |
+| invalid_request      | 400  | Malformed envelope, context, unsafe numbers, or legal tree   |
+| invalid_request      | 405  | Non-POST request                                             |
+| invalid_request      | 413  | Incoming body exceeds configured byte limit                  |
+| unauthorized         | 401  | Invalid signature, key, or freshness                         |
+| unsupported_delivery | 400  | Unknown event or verification version                        |
+| stale_context        | 409  | Conflicting duplicate or mismatching fallback context        |
+| missing_legal_moves  | 503  | Required tree unavailable or retrieval failed                |
+| capacity_exceeded    | 503  | Request or retained-cache capacity exhausted                 |
+| deadline_exceeded    | 504  | Budget expired or request cancelled                          |
+| strategy_failed      | 500  | Callback failed, invalid output, or unexpected handler error |
+
+The pinned server treats 4xx delivery failures as terminal and retries 5xx
+while its delivery/clock budget allows.
+The handler makes no gameplay action out of either class. Retry does not promise
+success or exactly-once processing. The Node adapter sanitizes failures outside
+the handler as HTTP 500 `{error: "internal_error"}`; once headers are sent it
+terminates the failed response.
 
 ## Package and validation contract
 
-ESM-only root export with declaration files; no CommonJS, engine, model SDK or
-runtime dependencies. Node.js 26.8.2 and Deno 2.9.7 are the tested foundation
-versions. Tests validate protocol examples and packed build portability only.
-The types do not authenticate requests or validate JSON. No npm release, consumer
-migration, registration, or live game is part of this milestone.
+ESM exports are the portable root and Node-only `/node` createNodeListener adapter,
+with declarations and no runtime dependencies. The adapter does not start a
+server, read configuration, or register bots. It propagates disconnect cancellation
+and bridges HTTP streams. Deno uses the web-standard handler directly.
+
+Node.js 26.8.2 and Deno 2.9.7 are the pinned validation environments. Tests cover
+the real handler, offline fixtures, and package consumers; Node adapter checks use
+local loopback only. No new upstream JVM test execution, npm release, consumer
+migration, registration, deployment, or live game is implied.
