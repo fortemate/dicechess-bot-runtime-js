@@ -1,7 +1,92 @@
-# Owner-only npm release checklist
+# Owner-triggered npm release checklist
+
+## GitHub Actions (recommended)
+
+The **npm release** workflow (`npm-publish.yaml`) follows the engine's checked
+artifact/OIDC pattern, without its JVM/Wasm builds, mirrors, tags, or version-bump
+automation. It runs only on manual dispatch on `main` in this repository.
+
+It validates Node 22/24/26 and Deno, then packs and tests the exact archive, retaining
+it with a commit/version/SHA-512 manifest as `npm-release-<run-id>-<run-attempt>`
+for 90 days. The job summary records the manifest checksum. Only the publishing
+job receives `id-token: write`; it verifies the downloaded bundle, installs no
+dependencies, and publishes without lifecycle scripts via npm OIDC with provenance.
+No permanent npm token is needed. Agents must not dispatch the workflow.
+
+### First publication and trust setup
+
+npm requires a package to exist before configuring its Trusted Publisher. The
+engine's trust does not authorize this new package. For the first version:
+
+1. Run **npm release** on `main`, enter `0.1.0-alpha.1`, and leave **publish unchecked**.
+2. Wait for successful checks and download/extract the artifact into a new directory.
+   From the exact source commit, verify against the checksum from the job summary:
+
+   ```sh
+   node scripts/npm-release.mjs verify /absolute/path/to/extracted-bundle \
+     0.1.0-alpha.1 <approved-commit-sha> <manifest-integrity-from-job-summary>
+   ```
+
+3. The owner authenticates interactively and publishes the exact archive from the
+   extracted directory verified in step 2:
+
+   ```sh
+   npm publish /absolute/path/to/extracted-bundle/fortemate-dicechess-bot-runtime-0.1.0-alpha.1.tgz \
+     --ignore-scripts --access public --tag next --registry=https://registry.npmjs.org/
+   ```
+
+   Use the same extracted directory in both commands. Do not rebuild the package
+   or use the local fallback's `$release_dir` for this CI-artifact flow.
+   This local bootstrap does not receive GitHub Actions OIDC provenance.
+
+4. Create GitHub environment **npm**, restrict deployment branches to `main`, and
+   configure required reviewers. The workflow alone does not add these protections.
+5. In npm package settings, add a GitHub Actions Trusted Publisher:
+
+   | Setting           | Value                                |
+   | ----------------- | ------------------------------------ |
+   | Organization      | `fortemate`                          |
+   | Repository        | `dicechess-bot-runtime-js`           |
+   | Workflow filename | `npm-publish.yaml`                   |
+   | Environment       | `npm`                                |
+   | Direct publishing | Allowed (stage-only is insufficient) |
+
+   Alternatively, the owner can use npm 11.15.0+ with 2FA and package write access:
+
+   ```sh
+   npm trust github @fortemate/dicechess-bot-runtime \
+     --repo fortemate/dicechess-bot-runtime-js --file npm-publish.yaml \
+     --env npm --allow-publish
+   ```
+
+No account configuration or publication is performed by this change.
+
+### Subsequent versions and recovery
+
+Merge a reviewed version change in package.json and package-lock.json. Run the
+workflow on `main` with the exact version and **publish selected**, then approve
+the environment after inspecting the bundle. Prereleases use `next`. A future
+stable release also requires updating `publishConfig.tag` and its package-check
+expectation to `latest`.
+
+An existing version is skipped only if its integrity matches; it is never retagged.
+Different bytes, authentication errors, and unexpected registry responses fail
+closed. Only a 404 means absent. After a write, registry propagation is checked
+up to 12 times at 10-second intervals, with a 15-second timeout per read.
+A failed write or timed-out job may already have published: inspect the registry
+before retrying and retain the original bundle. Re-run **all jobs** of the original
+run, not only the publisher (artifact names include run attempt). Do not rebuild
+another commit under an existing version. Dist-tag correction is a separate owner
+action. A green preparation job alone is not publication evidence.
+
+References: [Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) and
+[npm trust prerequisites](https://docs.npmjs.com/cli/v11/commands/npm-trust/).
+
+## Local fallback / first bootstrap
 
 Status: preparation only. Candidate: `@fortemate/dicechess-bot-runtime@0.1.0-alpha.1`.
-No package, Git tag, or GitHub release is created by CI or this change. The first
+No package is published by ordinary CI or preparation-only runs. No Git tag or
+GitHub release is created by this workflow. The first
 consumer migration and any deployment remain separate work.
 
 ## Approval and account prerequisites
@@ -37,12 +122,13 @@ when publishing from the source directory, but is not an authorization control.
 After review, the owner can create the archive in an empty temporary directory:
 
 ```sh
-release_dir=$(mktemp -d)
-npm pack --json --pack-destination "$release_dir"
+release_parent=$(mktemp -d)
+release_dir="$release_parent/bundle"
+node scripts/check-package.mjs --output "$release_dir"
 ```
 
 Inspect the listed files and the archive. The expected filename for this candidate
-is `fortemate-dicechess-bot-runtime-0.1.0-alpha.1.tgz`. Record the returned integrity digest and the
+is `fortemate-dicechess-bot-runtime-0.1.0-alpha.1.tgz`. Record its SHA-512 integrity and the
 approved Git commit. Keep this exact archive for the publication step.
 
 ## Publish — human action only
@@ -52,7 +138,7 @@ and publishes the inspected archive; never store an npm token in the repository.
 
 ```sh
 npm publish "$release_dir/fortemate-dicechess-bot-runtime-0.1.0-alpha.1.tgz" \
-  --access public --tag next --registry=https://registry.npmjs.org/
+  --ignore-scripts --access public --tag next --registry=https://registry.npmjs.org/
 ```
 
 Publishing a tarball does not replace the earlier source checks. The `next` tag
