@@ -1,6 +1,7 @@
 # Architecture
 
-Status: agreed direction; contract/build foundation implemented, handler pending.
+Status: portable webhook handler and Node HTTP adapter implemented; consumer
+migration, publication, and live validation remain separate work.
 
 ## Protocol authority
 
@@ -27,16 +28,18 @@ Keep environment variables, server startup, signals, and platform SDKs in thin
 adapters outside the core. Inject networking and time for deterministic tests.
 Start with one package; split only when a consumer demonstrates a need.
 
-The foundation is tested on Node.js 26.8.2 and Deno 2.9.7. Handler and adapter
-compatibility remains unimplemented. Other versions and environments need tests
-before being advertised as supported.
+The core is tested on Node.js 26.8.2 and Deno 2.9.7; the Node HTTP adapter has
+separate loopback tests. Other versions and environments need tests before being
+advertised as supported. The root exports createWebhookHandler; the Node-only
+/node entry exports createNodeListener. Neither starts a server or reads config.
 
 ## Authentication and state
 
 - Verify signatures over original request bytes, never reserialized JSON.
 - Authenticate gameplay deliveries before strategy dispatch.
 - Implement signed verification v2 and active/pending key rules. Never silently
-  fall back to an unsigned legacy handshake.
+  fall back to an unsigned legacy handshake. Signed no-version readiness probes
+  require explicit allowLegacyReadiness opt-in, disabled by default.
 - Validate delivery types and preserve game identity, seat, state version, DFEN,
   and clock semantics.
 - Distinguish missing legal moves from an empty legal tree.
@@ -51,6 +54,18 @@ Cancellation must prevent late results from becoming successful responses.
 Define retry and duplicate-delivery behavior; an in-memory cache cannot promise
 distributed exactly-once execution. Failures must not silently become empty
 moves, resignations, or another playing strategy.
+
+All resource limits are explicit application inputs; no production defaults are
+embedded. The remaining game clock clamps the original monotonic request budget.
+Contexts and legal trees are frozen. Consumed numeric values must have canonical
+safe integer wire representations. Selected moves must reach an original leaf.
+
+Process-local deduplication keys game, seat, version, and delivery type, comparing
+decision inputs rather than ticking clocks. Successful results have a bounded
+TTL; failures can retry after work settles. Timed-out noncooperative work retains
+a bounded cache slot until it settles. This prevents an endless sequence of
+timeouts from bypassing the retained-work limit, but cannot forcibly stop JS.
+See the [protocol](protocol.md) for exact normalization, limits, and HTTP errors.
 
 ## Conformance and adoption
 

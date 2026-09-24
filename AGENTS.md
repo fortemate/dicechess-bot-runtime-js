@@ -4,8 +4,8 @@ Agent guidance for `fortemate/dicechess-bot-runtime-js`.
 
 ## Scope and current gate
 
-This is the contract/build foundation. Read docs/protocol.md, the architecture,
-and roadmap before implementation. No webhook handler or published package exists.
+This is the portable webhook runtime. Read docs/protocol.md, the architecture,
+and roadmap before implementation. No published package or migrated consumer exists.
 
 - Keep the library transport-only: no engine, Jev, prompts, or playing strategies.
 - Verify the current public server contract using synthetic shared wire fixtures.
@@ -14,8 +14,10 @@ and roadmap before implementation. No webhook handler or published package exist
   `git diff --check`. Initial setup: `mise install` then `mise run setup`.
 - The check gate covers formatting, strict exported types, ESM build, the same
   fixture tests on Node.js/Deno, and isolated packed-package consumers.
-- Fixture oracles are not handler tests. Never claim authentication, dispatch,
-  deadline, retry, or live gameplay validation from this foundation gate.
+- Distinguish fixture oracles from actual handler and HTTP-adapter tests. Offline
+  authentication, dispatch, deadline, and retry tests do not prove live gameplay.
+- Preserve explicit limits, authenticated readiness opt-in, pending-only v2,
+  immutable contexts, complete legal paths, and sanitized failure responses.
 - Keep package.json private until an owner-authorized publication task.
 - Do not publish packages, migrate other repositories, register bots, or deploy
   without separate task-scoped authorization.

@@ -1,7 +1,8 @@
 # Roadmap
 
 Deliver each milestone as a separate reviewable change. The contract/build
-foundation is implemented; webhook runtime and consumer migrations remain pending.
+foundation and portable webhook runtime are implemented; consumer migrations
+remain pending. Implementation status is not release or deployment status.
 
 ## 1. Contract and build
 
@@ -16,18 +17,25 @@ context behavior are explicitly specified.
 
 ## 2. Portable webhook runtime
 
+Status: implemented with offline handler, package, and Node adapter tests.
+
 Implement typed async strategies, envelope validation, signatures, verification
 v2, active/pending keys, response serialization, fallback move-tree retrieval,
 deadlines, cancellation, and explicit duplicate-delivery behavior. Add thin HTTP
 adapters and built-package consumer tests.
 
-Resolve the pinned server's legacy readiness-probe compatibility explicitly;
-see [the contract's adoption blocker](protocol.md#delivery-types-and-capabilities).
-Signed v2 setup alone does not establish catalog/showcase readiness compatibility.
+The pinned server's readiness compatibility is explicit authenticated no-version
+opt-in; see [the contract](protocol.md#delivery-types-and-capabilities).
+Signed v2 setup alone does not establish live catalog/showcase readiness.
 
 Acceptance: valid requests reach the right callback; invalid, unsupported, stale,
 or expired requests do not produce a gameplay response. No engine, model SDK,
 live credentials, or paid service is needed.
+
+Core behavior includes required limits, frozen contexts, full-leaf move validation,
+bound fallback retrieval, clock-clamped deadlines, and TTL-bounded process-local
+deduplication. Failures never silently become strategy choices. Distributed
+exactly-once execution is not provided.
 
 ## 3. First consumer
 
