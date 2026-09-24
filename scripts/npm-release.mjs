@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { existsSync, realpathSync } from "node:fs";
 import { readFile, readdir, writeFile } from "node:fs/promises";
-import { resolve, join } from "node:path";
+import { resolve, join, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const packageName = "@fortemate/dicechess-bot-runtime";
@@ -10,13 +11,49 @@ const registry = "https://registry.npmjs.org/";
 export const integrity = (bytes) =>
   `sha512-${createHash("sha512").update(bytes).digest("base64")}`;
 
+// setup-node/mise use the bundled JS entry (mise's bin/npm can be a shell wrapper).
+// Homebrew exposes a sibling symlink instead. Neither location comes from PATH.
+const bundledNpm = resolve(
+  dirname(process.execPath),
+  "../lib/node_modules/npm/bin/npm-cli.js",
+);
+export const npmCli = existsSync(bundledNpm)
+  ? bundledNpm
+  : realpathSync(resolve(dirname(process.execPath), "npm"));
+
+export function publishArchive(file, tag, run = execFileSync) {
+  return run(
+    process.execPath,
+    [
+      npmCli,
+      "publish",
+      file,
+      "--ignore-scripts",
+      "--access",
+      "public",
+      "--tag",
+      tag,
+      "--provenance",
+      `--registry=${registry}`,
+    ],
+    { stdio: "inherit", timeout: 120000 },
+  );
+}
+
 export function validateIdentity(version, sha) {
   assert.equal(version.trim(), version);
+  assert.doesNotMatch(version, /\s/);
   assert.equal(sha.trim(), sha);
-  assert.match(
-    version,
-    /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/,
-  );
+  const separator = version.indexOf("-");
+  const core = separator === -1 ? version : version.slice(0, separator);
+  const numbers = core.split(".");
+  assert.equal(numbers.length, 3);
+  for (const number of numbers) assert.match(number, /^(0|[1-9]\d*)$/);
+  if (separator !== -1)
+    assert.match(
+      version.slice(separator + 1),
+      /^[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*$/,
+    );
   assert.match(sha, /^[0-9a-f]{40}$/);
 }
 
@@ -34,8 +71,8 @@ export async function verifyBundle(directory, version, sha, expectedDigest) {
   );
   assert.equal(manifest.tag, version.includes("-") ? "next" : "latest");
   assert.deepEqual(
-    (await readdir(directory)).sort(),
-    [manifest.filename, "manifest.json"].sort(),
+    new Set(await readdir(directory)),
+    new Set([manifest.filename, "manifest.json"]),
   );
   assert.equal(
     integrity(await readFile(join(directory, manifest.filename))),
@@ -75,22 +112,7 @@ export async function publishVerified(
   directory,
   {
     lookup = registryIntegrity,
-    publish = (file, tag) =>
-      execFileSync(
-        "npm",
-        [
-          "publish",
-          file,
-          "--ignore-scripts",
-          "--access",
-          "public",
-          "--tag",
-          tag,
-          "--provenance",
-          `--registry=${registry}`,
-        ],
-        { stdio: "inherit", timeout: 120000 },
-      ),
+    publish = publishArchive,
     wait = () => new Promise((done) => setTimeout(done, 10000)),
   } = {},
 ) {

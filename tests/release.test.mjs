@@ -3,8 +3,11 @@ import { test } from "node:test";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
 import {
   integrity,
+  npmCli,
+  publishArchive,
   packageName,
   publishVerified,
   registryIntegrity,
@@ -24,10 +27,52 @@ const manifest = {
 };
 
 test("release identity rejects paths and invalid commit hashes", () => {
-  validateIdentity(version, sha);
-  for (const value of ["../x", "01.0.0", "1.0", "1.0.0\n", "1.0.0+unsafe"])
+  for (const value of [version, "0.0.0", "12.34.56", "1.2.3-alpha-beta.1"])
+    validateIdentity(value, sha);
+  for (const value of [
+    "../x",
+    "01.0.0",
+    "1.0",
+    "1.0.0\n",
+    "1.0.0+unsafe",
+    "1.02.3",
+    "1.2.03",
+    "1.2.3-",
+    "1.2.3-alpha..1",
+    "1.2.3-alpha/1",
+    "1.\n.3",
+    "1\n.2.3",
+  ])
     assert.throws(() => validateIdentity(value, sha));
   assert.throws(() => validateIdentity(version, "main"));
+});
+
+test("publisher uses bundled npm via absolute Node, with lifecycle scripts disabled", () => {
+  publishArchive("/synthetic/archive.tgz", "next", (command, args, options) => {
+    assert.equal(command, process.execPath);
+    assert.deepEqual(args, [
+      npmCli,
+      "publish",
+      "/synthetic/archive.tgz",
+      "--ignore-scripts",
+      "--access",
+      "public",
+      "--tag",
+      "next",
+      "--provenance",
+      "--registry=https://registry.npmjs.org/",
+    ]);
+    assert.equal(options.timeout, 120000);
+  });
+  // Safe real invocation proves the pinned distribution layout even without PATH.
+  assert.match(
+    execFileSync(process.execPath, [npmCli, "--version"], {
+      encoding: "utf8",
+      env: { ...process.env, PATH: "" },
+      timeout: 15000,
+    }).trim(),
+    /^\d+\.\d+\.\d+$/,
+  );
 });
 
 test("bundle verification binds bytes, identity, path and commit", async () => {
