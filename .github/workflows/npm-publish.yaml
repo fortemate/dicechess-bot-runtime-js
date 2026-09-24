@@ -1,0 +1,115 @@
+name: npm release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact reviewed package.json version
+        required: true
+        type: string
+      publish:
+        description: Publish via npm OIDC (requires existing package and trusted publisher)
+        default: false
+        type: boolean
+
+permissions: {}
+
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.repository == 'fortemate/dicechess-bot-runtime-js' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22.23.3", "24.21.0", "26.8.2"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: "2.9.7"
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+
+  prepare:
+    needs: check
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      manifest: ${{ steps.bundle.outputs.manifest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "26.8.2"
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: "2.9.7"
+      - run: npm ci --ignore-scripts
+      - name: Test and retain the exact archive
+        run: node scripts/check-package.mjs --output "$RUNNER_TEMP/npm-release"
+      - name: Bind archive to reviewed version and commit
+        id: bundle
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          digest=$(node scripts/npm-release.mjs prepare "$RUNNER_TEMP/npm-release" "$RELEASE_VERSION" "$GITHUB_SHA")
+          echo "manifest=$digest" >> "$GITHUB_OUTPUT"
+          {
+            echo '## Verified npm release bundle (not publication evidence)'
+            echo "Commit: $GITHUB_SHA"
+            echo "Manifest integrity: $digest"
+            echo '```json'
+            cat "$RUNNER_TEMP/npm-release/manifest.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: npm-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/npm-release/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+  publish:
+    if: inputs.publish
+    needs: prepare
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "26.8.2"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: npm-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/npm-release/
+      - name: Verify and publish without dependency installation or lifecycle scripts
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          MANIFEST_INTEGRITY: ${{ needs.prepare.outputs.manifest }}
+        run: |
+          npm --version
+          node scripts/npm-release.mjs publish "$RUNNER_TEMP/npm-release" "$RELEASE_VERSION" "$GITHUB_SHA" "$MANIFEST_INTEGRITY"

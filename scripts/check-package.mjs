@@ -1,11 +1,23 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdtemp,
+  mkdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+const args = process.argv.slice(2);
+assert.ok(
+  args.length === 0 || (args.length === 2 && args[0] === "--output" && args[1]),
+  "Usage: check-package.mjs [--output NEW_DIRECTORY]",
+);
 const temporary = await mkdtemp(join(tmpdir(), "dicechess-runtime-package-"));
 const run = (command, args, cwd) =>
   execFileSync(command, args, { cwd, encoding: "utf8", timeout: 60000 });
@@ -62,7 +74,8 @@ try {
     await readFile(join(installed, "package.json"), "utf8"),
   );
   assert.equal(metadata.private, undefined);
-  assert.equal(metadata.version, "0.1.0-alpha.1");
+  const source = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  assert.equal(metadata.version, source.version);
   assert.deepEqual(metadata.publishConfig, {
     access: "public",
     tag: "next",
@@ -136,6 +149,14 @@ console.log("Isolated package consumer passed");
   console.log(
     "Verified packed files, Node package exports, and Deno built entry; nothing published.",
   );
+  if (args.length) {
+    // Refuse existing destinations; retain only the exact archive tested above.
+    await mkdir(args[1]);
+    await copyFile(
+      join(temporary, packed.filename),
+      join(args[1], packed.filename),
+    );
+  }
 } finally {
   // This directory is exclusively owned by this invocation of mkdtemp.
   await rm(temporary, { recursive: true, force: true });

@@ -22,7 +22,7 @@ and roadmap before implementation. No published package or migrated consumer exi
 - Release/tag creation and registry publication remain human-only. Read docs/releasing.md.
 - Do not publish packages, migrate other repositories, register bots, or deploy
   without separate task-scoped authorization.
-- Release labeling and release automation are not configured in this bootstrap.
+- npm release automation is manual and owner-triggered; never dispatch it as an agent.
 
 ## publication
 
