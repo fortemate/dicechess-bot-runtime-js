@@ -28,7 +28,7 @@ Keep environment variables, server startup, signals, and platform SDKs in thin
 adapters outside the core. Inject networking and time for deterministic tests.
 Start with one package; split only when a consumer demonstrates a need.
 
-The core is tested on Node.js 26.8.2 and Deno 2.9.7; the Node HTTP adapter has
+The core is tested on Node.js 22.23.3, 24.21.0, 26.8.2 and Deno 2.9.7; the Node HTTP adapter has
 separate loopback tests. Other versions and environments need tests before being
 advertised as supported. The root exports createWebhookHandler; the Node-only
 /node entry exports createNodeListener. Neither starts a server or reads config.

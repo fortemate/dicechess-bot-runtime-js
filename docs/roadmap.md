@@ -39,6 +39,10 @@ exactly-once execution is not provided.
 
 ## 3. First consumer
 
+Prerequisite: Node 22/24/26 package checks and public prerelease metadata are
+prepared. The owner must complete [the release checklist](releasing.md) before
+the starter can consume a published version. No release is implied by this PR.
+
 Migrate dicechess-bot-typescript in a separate authorized PR. Preserve its
 playing strategy and compare protocol behavior against the shared fixtures.
 

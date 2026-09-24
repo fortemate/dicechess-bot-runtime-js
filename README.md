@@ -17,8 +17,10 @@ The library must not depend on the engine, Jev, prompts, or any playing strategy
 Portable core logic and the thin Node.js HTTP adapter are tested separately.
 
 Local package name: `@fortemate/dicechess-bot-runtime`, ESM with TypeScript
-declarations. It remains `private: true` and has no runtime dependencies. The name
-is not reserved or published. Exports are the package root and `/node`; internals,
+declarations. The first release candidate is `0.1.0-alpha.1`, configured for public
+npm access under the `next` tag. It has no runtime dependencies. Publication is
+an owner-only step; this preparation does not reserve the name or publish it.
+Exports are the package root and `/node`; internals,
 fixtures, and build tools are not part of the package API.
 
 ## Handler API
@@ -85,6 +87,12 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
 [AGENTS.md](AGENTS.md). Pinned tools: Node.js 26.8.2, Deno 2.9.7,
 TypeScript 7.0.2, and Prettier 3.9.9.
 
+The full CI gate also runs on Node 22.23.3 and 24.21.0. Package engine ranges
+admit those tested floors through their respective major versions, plus Node
+26.8.2 through 26.x. Node 20, odd majors, and older minor versions are not claimed
+as supported. Development declarations use Node 22 types. These checks do not
+establish Azure hosting compatibility or migrate the starter.
+
 ```sh
 mise install
 mise run setup
@@ -98,10 +106,19 @@ type checks, shared fixture tests on Node.js and Deno, and isolated local packag
 consumers. Installing tools/dependencies requires network access; subsequent
 tests use no external services. Deno tests run without network permission.
 
+Run the complete gate on each installed Node version with, for example,
+`mise exec node@22.23.3 -- npm run check` (likewise 24.21.0 and 26.8.2).
+Do not run builds concurrently in the same checkout: each build clears `dist`.
+
 The package check creates and installs a temporary local tarball offline, tests
 Node package exports and the Deno compiled entry, then removes its own temporary
 directory. It does not publish anything. TypeScript declarations are checked
 using a consumer import through the package export map.
+
+Normal `npm pack` builds fresh output through `prepack`; it does not publish.
+The package check verifies that stale generated files are excluded and compiles
+a consumer against the installed tarball declarations. See the
+[owner-only release checklist](docs/releasing.md) before publishing.
 
 These checks exercise actual handler behavior, synthetic fixtures, package
 compatibility, and the Node HTTP adapter on the pinned versions. They do not

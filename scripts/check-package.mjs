@@ -11,12 +11,14 @@ const run = (command, args, cwd) =>
   execFileSync(command, args, { cwd, encoding: "utf8", timeout: 60000 });
 
 try {
+  // Packing must rebuild, not accidentally ship stale generated output.
+  await mkdir(join(root, "dist"), { recursive: true });
+  await writeFile(
+    join(root, "dist/stale-package-marker.js"),
+    "throw new Error('stale build');\n",
+  );
   const [packed] = JSON.parse(
-    run(
-      "npm",
-      ["pack", "--ignore-scripts", "--json", "--pack-destination", temporary],
-      root,
-    ),
+    run("npm", ["pack", "--json", "--pack-destination", temporary], root),
   );
   assert.equal(basename(packed.filename), packed.filename);
   const names = packed.files.map(({ path }) => path).sort();
@@ -59,13 +61,43 @@ try {
   const metadata = JSON.parse(
     await readFile(join(installed, "package.json"), "utf8"),
   );
-  assert.equal(metadata.private, true);
+  assert.equal(metadata.private, undefined);
+  assert.equal(metadata.version, "0.1.0-alpha.1");
+  assert.deepEqual(metadata.publishConfig, {
+    access: "public",
+    tag: "next",
+    registry: "https://registry.npmjs.org/",
+  });
   assert.equal(metadata.type, "module");
   assert.equal(metadata.exports["."].types, "./dist/index.d.ts");
   assert.equal(metadata.exports["."].import, "./dist/index.js");
   assert.equal(metadata.exports["./node"].import, "./dist/node.js");
   assert.equal(Object.keys(metadata.dependencies ?? {}).length, 0);
   await readFile(join(installed, "dist/index.d.ts"), "utf8");
+  const typeConsumer = join(consumer, "types.mts");
+  await writeFile(
+    typeConsumer,
+    await readFile(join(root, "tests/types.ts"), "utf8"),
+  );
+  run(
+    join(root, "node_modules/.bin/tsc"),
+    [
+      "--noEmit",
+      "--strict",
+      "--target",
+      "ES2022",
+      "--module",
+      "NodeNext",
+      "--lib",
+      "ES2022,DOM",
+      "--types",
+      "node",
+      "--typeRoots",
+      join(root, "node_modules/@types"),
+      typeConsumer,
+    ],
+    consumer,
+  );
 
   const assertion = `
 if (runtime.VERIFICATION_VERSION !== 2 || runtime.CONTRACT_DELIVERY_TYPES.length !== 2) {

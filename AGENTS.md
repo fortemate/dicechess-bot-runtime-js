@@ -18,7 +18,8 @@ and roadmap before implementation. No published package or migrated consumer exi
   authentication, dispatch, deadline, and retry tests do not prove live gameplay.
 - Preserve explicit limits, authenticated readiness opt-in, pending-only v2,
   immutable contexts, complete legal paths, and sanitized failure responses.
-- Keep package.json private until an owner-authorized publication task.
+- Public npm metadata is prepared with owner approval; the package is not yet released.
+- Release/tag creation and registry publication remain human-only. Read docs/releasing.md.
 - Do not publish packages, migrate other repositories, register bots, or deploy
   without separate task-scoped authorization.
 - Release labeling and release automation are not configured in this bootstrap.
