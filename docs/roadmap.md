@@ -1,9 +1,11 @@
 # Roadmap
 
-Deliver each milestone as a separate reviewable change. All implementation
-milestones below are pending.
+Deliver each milestone as a separate reviewable change. The contract/build
+foundation is implemented; webhook runtime and consumer migrations remain pending.
 
 ## 1. Contract and build
+
+Status: implemented. See [Protocol contract](protocol.md) and the offline gate.
 
 Pin public protocol/reference revisions, TypeScript tools, and supported Node.js
 and Deno versions. Specify events, capabilities, errors, legal-tree semantics,
@@ -18,6 +20,10 @@ Implement typed async strategies, envelope validation, signatures, verification
 v2, active/pending keys, response serialization, fallback move-tree retrieval,
 deadlines, cancellation, and explicit duplicate-delivery behavior. Add thin HTTP
 adapters and built-package consumer tests.
+
+Resolve the pinned server's legacy readiness-probe compatibility explicitly;
+see [the contract's adoption blocker](protocol.md#delivery-types-and-capabilities).
+Signed v2 setup alone does not establish catalog/showcase readiness compatibility.
 
 Acceptance: valid requests reach the right callback; invalid, unsupported, stale,
 or expired requests do not produce a gameplay response. No engine, model SDK,

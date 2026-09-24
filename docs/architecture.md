@@ -1,6 +1,6 @@
 # Architecture
 
-Status: agreed direction; implementation pending.
+Status: agreed direction; contract/build foundation implemented, handler pending.
 
 ## Protocol authority
 
@@ -8,7 +8,7 @@ The current public play-api contract is authoritative. The
 [JVM runtime](https://github.com/fortemate/dicechess-bot-runtime) is a reference
 implementation and a source of test vectors, not a requirement to copy Java APIs.
 
-Before implementation, pin contract revisions and inventory delivery types,
+The [protocol contract](protocol.md) pins revisions and inventories delivery types,
 optional capabilities, verification versions, response shapes, and errors.
 Existing starter handlers are migration inputs, not the specification.
 
@@ -27,9 +27,9 @@ Keep environment variables, server startup, signals, and platform SDKs in thin
 adapters outside the core. Inject networking and time for deterministic tests.
 Start with one package; split only when a consumer demonstrates a need.
 
-Initial targets are Node.js and Deno, with exact supported versions pinned in
-the build milestone. Other environments need adapter tests before being
-advertised as supported.
+The foundation is tested on Node.js 26.8.2 and Deno 2.9.7. Handler and adapter
+compatibility remains unimplemented. Other versions and environments need tests
+before being advertised as supported.
 
 ## Authentication and state
 
@@ -42,7 +42,8 @@ advertised as supported.
 - Distinguish missing legal moves from an empty legal tree.
 - Bind fallback move-tree retrieval to the original context; reject mismatches.
 - Bound input sizes and remote responses and redact sensitive diagnostics.
-- Follow optional draw/doubling capability contracts. Do not advertise
+- Follow optional capability contracts. The pinned server confirms draws, not
+  doubling; keep doubling outside the current exports. Do not advertise
   unsupported capabilities or dispatch their events as ordinary turns.
 
 Use one delivery deadline across fallback requests and strategy work.

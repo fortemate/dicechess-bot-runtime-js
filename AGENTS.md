@@ -4,15 +4,19 @@ Agent guidance for `fortemate/dicechess-bot-runtime-js`.
 
 ## Scope and current gate
 
-This is a documentation bootstrap. Read the architecture and roadmap before
-implementation. No npm package, build, runtime, or deployment exists yet.
+This is the contract/build foundation. Read docs/protocol.md, the architecture,
+and roadmap before implementation. No webhook handler or published package exists.
 
 - Keep the library transport-only: no engine, Jev, prompts, or playing strategies.
 - Verify the current public server contract using synthetic shared wire fixtures.
 - Design a portable async TypeScript API and prove Node.js/Deno compatibility.
-- Run `git diff --check` before every commit. Add pinned tools, formatting,
-  type checks, and meaningful offline tests with the first implementation.
-- CI currently checks required documentation files and commit whitespace only.
+- Before every commit run `mise run format`, `mise run check`, and
+  `git diff --check`. Initial setup: `mise install` then `mise run setup`.
+- The check gate covers formatting, strict exported types, ESM build, the same
+  fixture tests on Node.js/Deno, and isolated packed-package consumers.
+- Fixture oracles are not handler tests. Never claim authentication, dispatch,
+  deadline, retry, or live gameplay validation from this foundation gate.
+- Keep package.json private until an owner-authorized publication task.
 - Do not publish packages, migrate other repositories, register bots, or deploy
   without separate task-scoped authorization.
 - Release labeling and release automation are not configured in this bootstrap.

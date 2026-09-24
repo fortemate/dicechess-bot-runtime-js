@@ -1,0 +1,220 @@
+[
+  {
+    "id": "untimed-white",
+    "envelope": {
+      "type": "yourTurn",
+      "gameId": "synthetic-game",
+      "seat": "White",
+      "state": {
+        "version": 7,
+        "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1 P",
+        "activeSeat": "White",
+        "dicePending": true,
+        "clocks": null,
+        "legalMoves": {
+          "e2e3": {}
+        },
+        "mayOfferDraw": false
+      }
+    },
+    "context": {
+      "gameId": "synthetic-game",
+      "seat": "White",
+      "version": 7,
+      "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1 P",
+      "clock": null,
+      "legalMoves": {
+        "e2e3": {}
+      },
+      "mayOfferDraw": false
+    }
+  },
+  {
+    "id": "timed-white",
+    "envelope": {
+      "type": "yourTurn",
+      "gameId": "synthetic-game",
+      "seat": "White",
+      "state": {
+        "version": 7,
+        "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1 P",
+        "activeSeat": "White",
+        "dicePending": true,
+        "clocks": {
+          "white": 12000,
+          "black": 23000
+        },
+        "legalMoves": {
+          "e2e3": {}
+        },
+        "mayOfferDraw": true,
+        "timeControl": {
+          "Fischer": {
+            "initialSeconds": 30,
+            "incrementSeconds": 2
+          }
+        }
+      }
+    },
+    "context": {
+      "gameId": "synthetic-game",
+      "seat": "White",
+      "version": 7,
+      "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1 P",
+      "clock": {
+        "remainingMillis": 12000,
+        "opponentRemainingMillis": 23000,
+        "incrementMillis": 2000
+      },
+      "legalMoves": {
+        "e2e3": {}
+      },
+      "mayOfferDraw": true
+    }
+  },
+  {
+    "id": "timed-black",
+    "envelope": {
+      "type": "yourTurn",
+      "gameId": "synthetic-game",
+      "seat": "Black",
+      "state": {
+        "version": 7,
+        "dfen": "4k3/4p3/8/8/8/8/8/4K3 b - - 0 1 p",
+        "activeSeat": "Black",
+        "dicePending": true,
+        "clocks": {
+          "white": 12000,
+          "black": 23000
+        },
+        "legalMoves": {
+          "e7e6": {}
+        },
+        "mayOfferDraw": "true",
+        "timeControl": {
+          "SuddenDeath": {
+            "initialSeconds": 30
+          }
+        }
+      }
+    },
+    "context": {
+      "gameId": "synthetic-game",
+      "seat": "Black",
+      "version": 7,
+      "dfen": "4k3/4p3/8/8/8/8/8/4K3 b - - 0 1 p",
+      "clock": {
+        "remainingMillis": 23000,
+        "opponentRemainingMillis": 12000,
+        "incrementMillis": null
+      },
+      "legalMoves": {
+        "e7e6": {}
+      },
+      "mayOfferDraw": false
+    }
+  },
+  {
+    "id": "moves-unavailable-null",
+    "envelope": {
+      "type": "yourTurn",
+      "gameId": "synthetic-game",
+      "seat": "White",
+      "state": {
+        "version": 7,
+        "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1 P",
+        "activeSeat": "White",
+        "dicePending": true,
+        "clocks": null,
+        "legalMoves": null,
+        "mayOfferDraw": false
+      }
+    },
+    "context": {
+      "gameId": "synthetic-game",
+      "seat": "White",
+      "version": 7,
+      "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1 P",
+      "clock": null,
+      "legalMoves": null,
+      "mayOfferDraw": false
+    }
+  },
+  {
+    "id": "moves-unavailable-missing",
+    "envelope": {
+      "type": "yourTurn",
+      "gameId": "synthetic-game",
+      "seat": "White",
+      "state": {
+        "version": 7,
+        "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1 P",
+        "activeSeat": "White",
+        "dicePending": true,
+        "clocks": null,
+        "mayOfferDraw": false
+      }
+    },
+    "context": {
+      "gameId": "synthetic-game",
+      "seat": "White",
+      "version": 7,
+      "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1 P",
+      "clock": null,
+      "legalMoves": null,
+      "mayOfferDraw": false
+    }
+  },
+  {
+    "id": "empty-root",
+    "envelope": {
+      "type": "yourTurn",
+      "gameId": "synthetic-game",
+      "seat": "White",
+      "state": {
+        "version": 7,
+        "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1 P",
+        "activeSeat": "White",
+        "dicePending": true,
+        "clocks": null,
+        "legalMoves": {},
+        "mayOfferDraw": false
+      }
+    },
+    "context": {
+      "gameId": "synthetic-game",
+      "seat": "White",
+      "version": 7,
+      "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1 P",
+      "clock": null,
+      "legalMoves": {},
+      "mayOfferDraw": false
+    }
+  },
+  {
+    "id": "draw-preroll",
+    "envelope": {
+      "type": "drawDecision",
+      "gameId": "synthetic-game",
+      "seat": "White",
+      "state": {
+        "version": 8,
+        "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1",
+        "activeSeat": "White",
+        "dicePending": false,
+        "clocks": null,
+        "legalMoves": null,
+        "drawOffer": {
+          "pending": true
+        }
+      }
+    },
+    "context": {
+      "gameId": "synthetic-game",
+      "seat": "White",
+      "version": 8,
+      "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1",
+      "clock": null
+    }
+  }
+]

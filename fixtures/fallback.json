@@ -1,0 +1,54 @@
+{
+  "origin": {
+    "version": 7,
+    "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1 P"
+  },
+  "cases": [
+    {
+      "id": "matching",
+      "response": {
+        "version": 7,
+        "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1 P",
+        "dicePending": true,
+        "legalMoves": {
+          "e2e3": {}
+        }
+      },
+      "expected": "accept"
+    },
+    {
+      "id": "stale-version",
+      "response": {
+        "version": 8,
+        "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1 P",
+        "dicePending": true,
+        "legalMoves": {
+          "e2e3": {}
+        }
+      },
+      "expected": "stale_context"
+    },
+    {
+      "id": "stale-position",
+      "response": {
+        "version": 7,
+        "dfen": "different-position",
+        "dicePending": true,
+        "legalMoves": {
+          "e2e3": {}
+        }
+      },
+      "expected": "stale_context"
+    },
+    {
+      "id": "no-pending-dice",
+      "response": {
+        "version": 7,
+        "dfen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1 P",
+        "dicePending": false,
+        "legalMoves": {}
+      },
+      "expected": "stale_context"
+    }
+  ]
+}

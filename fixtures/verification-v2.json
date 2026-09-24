@@ -1,0 +1,20 @@
+[
+  {
+    "id": "server-verification-v2",
+    "source": "https://github.com/fortemate/dicechess-play-api/blob/e0d9ff54e462126b8d5f0bc2d270938587a60d3c/src/test/scala/dicechess/play/server/WebhookSecuritySuite.scala",
+    "secret": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "timestamp": 1756728000,
+    "rawBody": "{\"type\":\"verification\",\"version\":2,\"bot\":{\"team\":\"acme\",\"name\":\"greedy\"},\"setupId\":\"whs_test\",\"revision\":\"whrev_test\",\"nonce\":\"AAECAwQFBgcICQoLDA0ODw\"}",
+    "signature": "99f91b462250d95ec39f942844622eed87620c07b022c11a0b65f5380d123803",
+    "proof": "408d1e2804bdc90036333e6475523904113d009a6e971711e7500f8eb6314947"
+  },
+  {
+    "id": "jvm-verification-v2",
+    "source": "https://github.com/fortemate/dicechess-bot-runtime/blob/798196d564657d3f7b6eb5be4e5227b92ebb9266/src/test/java/com/fortemate/dicechess/runtime/VerificationV2Vectors.java",
+    "secret": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "timestamp": 1788264000,
+    "rawBody": "{\"type\":\"verification\",\"version\":2,\"bot\":{\"team\":\"acme\",\"name\":\"greedy\"},\"setupId\":\"whs_test\",\"revision\":\"whrev_test\",\"nonce\":\"AQIDBAUGBwgJCgsMDQ4PEA\"}",
+    "signature": "d5a25685fcf630eec4de6a07536aea2d302c0048c3fafd0a5f0b8dd0b908b451",
+    "proof": "d5cb5c588d0bee2d87a2980061feb30e3e1d22cb6701c01934fdca35408090fa"
+  }
+]
