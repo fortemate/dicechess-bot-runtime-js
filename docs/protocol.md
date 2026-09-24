@@ -156,7 +156,7 @@ with declarations and no runtime dependencies. The adapter does not start a
 server, read configuration, or register bots. It propagates disconnect cancellation
 and bridges HTTP streams. Deno uses the web-standard handler directly.
 
-Node.js 26.8.2 and Deno 2.9.7 are the pinned validation environments. Tests cover
+Node.js 22.23.3, 24.21.0, 26.8.2 and Deno 2.9.7 are the pinned validation environments. Tests cover
 the real handler, offline fixtures, and package consumers; Node adapter checks use
 local loopback only. No new upstream JVM test execution, npm release, consumer
 migration, registration, deployment, or live game is implied.
