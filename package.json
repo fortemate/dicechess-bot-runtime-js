@@ -1,0 +1,41 @@
+{
+  "name": "@fortemate/dicechess-bot-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Portable Dice Chess webhook protocol foundation for TypeScript.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fortemate/dicechess-bot-runtime-js.git"
+  },
+  "engines": {
+    "node": ">=26.8.2 <27"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.types.json",
+    "test:node": "node --test tests/contract.test.mjs",
+    "test:deno": "deno test --no-config --no-npm --cached-only --allow-read=fixtures,dist,package.json tests/contract.test.mjs",
+    "check:package": "node scripts/check-package.mjs",
+    "check": "npm run format:check && npm run build && npm run typecheck && npm run test:node && npm run test:deno && npm run check:package"
+  },
+  "devDependencies": {
+    "prettier": "3.9.9",
+    "typescript": "7.0.2"
+  }
+}

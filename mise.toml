@@ -1,0 +1,15 @@
+[tools]
+node = "26.8.2"
+deno = "2.9.7"
+
+[tasks.setup]
+description = "Install locked development dependencies without lifecycle scripts"
+run = "npm ci --ignore-scripts"
+
+[tasks.format]
+description = "Format repository files"
+run = "npm run format"
+
+[tasks.check]
+description = "Run the complete offline post-install gate"
+run = "npm run check"

@@ -13,18 +13,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  documentation:
-    name: Documentation
+  check:
+    name: Contract and build (Node.js + Deno)
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Check required bootstrap files
-        run: |
-          for path in README.md LICENSE AGENTS.md CONTRIBUTING.md SECURITY.md docs/architecture.md docs/roadmap.md; do
-            test -s "$path"
-          done
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "26.8.2"
+          cache: npm
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: "2.9.7"
+      - name: Install locked development tools
+        run: npm ci --ignore-scripts
+      - name: Format, build, types, shared fixtures, and packed consumers
+        run: npm run check
       - name: Check commit whitespace
         run: git show --format= --check --diff-merges=first-parent HEAD
