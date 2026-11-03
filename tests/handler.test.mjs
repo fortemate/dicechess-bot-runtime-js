@@ -110,8 +110,82 @@ for (const value of [null, undefined])
   test(`missing tree ${value} is not pass`, async () => {
     const envelope = clone();
     envelope.state.legalMoves = value;
-    await error(await app()(request(envelope)), 503, "missing_legal_moves");
+    await error(
+      await app({ fetch: async () => new Response("failed", { status: 503 }) })(
+        request(envelope),
+      ),
+      503,
+      "missing_legal_moves",
+    );
   });
+
+for (const [desc, failAction] of [
+  ["500 status", () => new Response("err", { status: 500 })],
+  [
+    "network exception",
+    () => {
+      throw new TypeError("net err");
+    },
+  ],
+]) {
+  test(`fetch retries once on transient failure (${desc})`, async () => {
+    const envelope = clone();
+    envelope.state.legalMoves = null;
+    let calls = 0;
+    let capturedUrl;
+    const res = await app({
+      fetch: async (url, init) => {
+        calls++;
+        capturedUrl = url;
+        assert.equal(init.redirect, "error");
+        if (calls === 1) return failAction();
+        return Response.json({ ...envelope.state, legalMoves: { e2e3: {} } });
+      },
+    })(request(envelope));
+    assert.equal(res.status, 200);
+    assert.equal(calls, 2);
+    assert.equal(
+      capturedUrl,
+      "https://api.fortemate.com/games/synthetic-game/moves",
+    );
+  });
+}
+
+for (const [desc, mock, expectedCode, expectedStatus, maxCalls] of [
+  [
+    "stale_context",
+    (env) =>
+      Response.json({ ...env.state, version: 999, legalMoves: { e2e3: {} } }),
+    "stale_context",
+    409,
+    1,
+  ],
+  [
+    "expired deadline",
+    async () => {
+      await delay(40);
+      return new Response("err", { status: 503 });
+    },
+    "deadline_exceeded",
+    504,
+    1,
+  ],
+]) {
+  test(`fetch does not retry on non-retryable failure (${desc})`, async () => {
+    const envelope = clone();
+    envelope.state.legalMoves = null;
+    let calls = 0;
+    const h = app({
+      limits: { ...limits, timeoutMs: 30 },
+      fetch: async () => {
+        calls++;
+        return mock(envelope);
+      },
+    });
+    await error(await h(request(envelope)), expectedStatus, expectedCode);
+    assert.equal(calls, maxCalls);
+  });
+}
 for (const [name, change] of [
   [
     "wrong seat",

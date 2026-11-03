@@ -7,6 +7,7 @@ import fallback from "../fixtures/fallback.json" with { type: "json" };
 import {
   ACTIVATION_PROOF_PREFIX,
   CONTRACT_DELIVERY_TYPES,
+  DEFAULT_PLAY_API_BASE_URL,
   PROTOCOL_REFERENCES,
   SIGNATURE_HEADER,
   TIMESTAMP_HEADER,
@@ -35,6 +36,7 @@ test("built entry exports the pinned contract", () => {
   assert.equal(SIGNATURE_HEADER, "x-dicechess-signature");
   assert.equal(TIMESTAMP_HEADER, "x-dicechess-timestamp");
   assert.equal(VERIFICATION_VERSION, 2);
+  assert.equal(DEFAULT_PLAY_API_BASE_URL, "https://api.fortemate.com");
   assert.deepEqual(CONTRACT_DELIVERY_TYPES, ["yourTurn", "drawDecision"]);
   assert(Object.isFrozen(CONTRACT_DELIVERY_TYPES));
   assert.match(PROTOCOL_REFERENCES.serverCommit, /^[a-f0-9]{40}$/);
@@ -172,6 +174,16 @@ test("missing, null, and empty legal moves remain distinct on the wire", () => {
 
 for (const fixture of fallback.cases) {
   test(`fallback fixture: ${fixture.id}`, () => {
+    if (fixture.attempts) {
+      assert.equal(fixture.attempts.length, 2);
+      const last = fixture.attempts[1].response;
+      const matches =
+        last.version === fallback.origin.version &&
+        last.dfen === fallback.origin.dfen &&
+        last.dicePending === true;
+      assert.equal(matches ? "accept" : "stale_context", fixture.expected);
+      return;
+    }
     const { response } = fixture;
     const matches =
       response.version === fallback.origin.version &&

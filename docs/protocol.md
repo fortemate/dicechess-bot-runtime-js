@@ -87,10 +87,12 @@ edges, and empty choices on a nonempty tree fail. Shorter terminal paths remain
 valid. Empty root returns `{moves: [], offerDraw: false}` without invoking strategy;
 the server owns auto-pass. Explicit resignation returns empty moves with resign.
 
-Absent/null legalMoves means unavailable, not empty. With playApiBaseUrl configured,
-both trigger `GET /games/{encodedGameId}/moves` through injected/default fetch.
-Redirects are rejected; response bytes and tree size are bounded. Version and
-DFEN must match the original context and dicePending must be true. A mismatch is
+Absent/null legalMoves means unavailable inline, not empty. Retrieval via
+`GET /games/{encodedGameId}/moves` through injected/default fetch (using
+`playApiBaseUrl`, which defaults to `https://api.fortemate.com`) is the normal path.
+If retrieval fails with a transient error, the fetch is retried once if time remains
+before the deadline. Redirects are rejected; response bytes and tree size are bounded.
+Version and DFEN must match the original context and dicePending must be true. A mismatch is
 stale_context; failed, missing, or malformed retrieval is missing_legal_moves.
 No fallback failure becomes an empty tree.
 

@@ -6,6 +6,7 @@ export const SIGNATURE_HEADER = "x-dicechess-signature";
 export const TIMESTAMP_HEADER = "x-dicechess-timestamp";
 export const VERIFICATION_VERSION = 2;
 export const ACTIVATION_PROOF_PREFIX = "dicechess-webhook-activate-v2\n";
+export const DEFAULT_PLAY_API_BASE_URL = "https://api.fortemate.com";
 
 /** Gameplay events supported by the runtime and pinned server. */
 export const CONTRACT_DELIVERY_TYPES = Object.freeze([
