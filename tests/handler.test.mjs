@@ -110,8 +110,103 @@ for (const value of [null, undefined])
   test(`missing tree ${value} is not pass`, async () => {
     const envelope = clone();
     envelope.state.legalMoves = value;
-    await error(await app()(request(envelope)), 503, "missing_legal_moves");
+    await error(
+      await app({ fetch: async () => new Response("failed", { status: 503 }) })(
+        request(envelope),
+      ),
+      503,
+      "missing_legal_moves",
+    );
   });
+
+test("null inline tree fetches from default playApiBaseUrl when omitted", async () => {
+  const envelope = clone();
+  envelope.state.legalMoves = null;
+  let requestedUrl;
+  const handler = app({
+    fetch: async (url, init) => {
+      requestedUrl = url;
+      assert.equal(init.redirect, "error");
+      return Response.json({ ...envelope.state, legalMoves: { e2e3: {} } });
+    },
+  });
+  const res = await handler(request(envelope));
+  assert.equal(res.status, 200);
+  assert.equal(
+    requestedUrl,
+    "https://api.fortemate.com/games/synthetic-game/moves",
+  );
+});
+
+test("fetch retries once if first attempt fails and time remains", async () => {
+  const envelope = clone();
+  envelope.state.legalMoves = null;
+  let attempts = 0;
+  const handler = app({
+    fetch: async () => {
+      attempts++;
+      if (attempts === 1) {
+        return new Response("server error", { status: 500 });
+      }
+      return Response.json({ ...envelope.state, legalMoves: { e2e3: {} } });
+    },
+  });
+  const res = await handler(request(envelope));
+  assert.equal(res.status, 200);
+  assert.equal(attempts, 2);
+});
+
+test("fetch retry on network error recovers before deadline", async () => {
+  const envelope = clone();
+  envelope.state.legalMoves = null;
+  let attempts = 0;
+  const handler = app({
+    fetch: async () => {
+      attempts++;
+      if (attempts === 1) {
+        throw new TypeError("network failed");
+      }
+      return Response.json({ ...envelope.state, legalMoves: { e2e3: {} } });
+    },
+  });
+  const res = await handler(request(envelope));
+  assert.equal(res.status, 200);
+  assert.equal(attempts, 2);
+});
+
+test("fetch does not retry when stale_context is encountered", async () => {
+  const envelope = clone();
+  envelope.state.legalMoves = null;
+  let attempts = 0;
+  const handler = app({
+    fetch: async () => {
+      attempts++;
+      return Response.json({
+        ...envelope.state,
+        version: 999, // stale version
+        legalMoves: { e2e3: {} },
+      });
+    },
+  });
+  await error(await handler(request(envelope)), 409, "stale_context");
+  assert.equal(attempts, 1);
+});
+
+test("fetch retry does not run if deadline expired", async () => {
+  const envelope = clone();
+  envelope.state.legalMoves = null;
+  let attempts = 0;
+  const handler = app({
+    limits: { ...limits, timeoutMs: 30 },
+    fetch: async () => {
+      attempts++;
+      await delay(40);
+      return new Response("failed", { status: 503 });
+    },
+  });
+  await error(await handler(request(envelope)), 504, "deadline_exceeded");
+  assert.equal(attempts, 1);
+});
 for (const [name, change] of [
   [
     "wrong seat",

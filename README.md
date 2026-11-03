@@ -49,7 +49,8 @@ required. Every `limits` field is explicit: `timeoutMs`, `maxBodyBytes`,
 `cacheTtlMs`. There are no production tuning defaults. Values must be positive
 safe integers; timeout cannot exceed the platform timer range and tree depth
 cannot exceed 256. Optional `now` and `fetch` support deterministic tests;
-`playApiBaseUrl` enables missing/null legal-tree retrieval.
+`playApiBaseUrl` configures legal-tree retrieval (defaults to `https://api.fortemate.com`).
+When inline legal moves are null or omitted, fetching from the play API is the normal path.
 
 Verification v2 authenticates with the pending key only. Gameplay accepts active
 or pending keys during rotation. `allowLegacyReadiness: true` explicitly enables

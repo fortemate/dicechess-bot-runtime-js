@@ -1,5 +1,6 @@
 import {
   ACTIVATION_PROOF_PREFIX,
+  DEFAULT_PLAY_API_BASE_URL,
   SIGNATURE_HEADER,
   TIMESTAMP_HEADER,
 } from "./protocol.js";
@@ -131,19 +132,17 @@ export function createWebhookHandler(
   const now = options.now ?? Date.now;
   const fetcher = options.fetch ?? globalThis.fetch;
   const readiness = options.allowLegacyReadiness === true;
-  let base: string | undefined;
-  if (options.playApiBaseUrl !== undefined) {
-    const url = new URL(options.playApiBaseUrl);
-    if (
-      !["http:", "https:"].includes(url.protocol) ||
-      url.username ||
-      url.password ||
-      url.search ||
-      url.hash
-    )
-      throw new TypeError("Invalid play API base URL");
-    base = url.href.replace(/\/$/, "");
-  }
+  const rawBase = options.playApiBaseUrl ?? DEFAULT_PLAY_API_BASE_URL;
+  const url = new URL(rawBase);
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  )
+    throw new TypeError("Invalid play API base URL");
+  const base = url.href.replace(/\/$/, "");
   const cache = new Map<string, Entry>();
   let active = 0;
   return async (request) => {
@@ -211,12 +210,12 @@ export function createWebhookHandler(
       }
       let legal: MoveTree;
       if (state.legalMoves == null) {
-        if (!base) throw new Failure("missing_legal_moves", 503);
-        try {
-          const fetched = await fetcher(
-            `${base}/games/${encodeURIComponent(context.gameId)}/moves`,
-            { signal: controller.signal, redirect: "error" },
-          );
+        const movesUrl = `${base}/games/${encodeURIComponent(context.gameId)}/moves`;
+        const fetchTree = async (): Promise<MoveTree> => {
+          const fetched = await fetcher(movesUrl, {
+            signal: controller.signal,
+            redirect: "error",
+          });
           try {
             check();
           } catch (error) {
@@ -241,16 +240,30 @@ export function createWebhookHandler(
             payload.dicePending !== true
           )
             throw new Failure("stale_context", 409);
-          legal = tree(
+          return tree(
             payload.legalMoves,
             limits.maxTreeNodes,
             limits.maxTreeDepth,
           );
+        };
+        try {
+          legal = await fetchTree();
         } catch (error) {
           check();
           if (error instanceof Failure && error.code === "stale_context")
             throw error;
-          throw new Failure("missing_legal_moves", 503);
+          // Retry the fetch once if time remains before the deadline.
+          try {
+            legal = await fetchTree();
+          } catch (retryError) {
+            check();
+            if (
+              retryError instanceof Failure &&
+              retryError.code === "stale_context"
+            )
+              throw retryError;
+            throw new Failure("missing_legal_moves", 503);
+          }
         }
       } else
         legal = tree(
