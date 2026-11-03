@@ -119,94 +119,73 @@ for (const value of [null, undefined])
     );
   });
 
-test("null inline tree fetches from default playApiBaseUrl when omitted", async () => {
-  const envelope = clone();
-  envelope.state.legalMoves = null;
-  let requestedUrl;
-  const handler = app({
-    fetch: async (url, init) => {
-      requestedUrl = url;
-      assert.equal(init.redirect, "error");
-      return Response.json({ ...envelope.state, legalMoves: { e2e3: {} } });
+for (const [desc, failAction] of [
+  ["500 status", () => new Response("err", { status: 500 })],
+  [
+    "network exception",
+    () => {
+      throw new TypeError("net err");
     },
+  ],
+]) {
+  test(`fetch retries once on transient failure (${desc})`, async () => {
+    const envelope = clone();
+    envelope.state.legalMoves = null;
+    let calls = 0;
+    let capturedUrl;
+    const res = await app({
+      fetch: async (url, init) => {
+        calls++;
+        capturedUrl = url;
+        assert.equal(init.redirect, "error");
+        if (calls === 1) return failAction();
+        return Response.json({ ...envelope.state, legalMoves: { e2e3: {} } });
+      },
+    })(request(envelope));
+    assert.equal(res.status, 200);
+    assert.equal(calls, 2);
+    assert.equal(
+      capturedUrl,
+      "https://api.fortemate.com/games/synthetic-game/moves",
+    );
   });
-  const res = await handler(request(envelope));
-  assert.equal(res.status, 200);
-  assert.equal(
-    requestedUrl,
-    "https://api.fortemate.com/games/synthetic-game/moves",
-  );
-});
+}
 
-test("fetch retries once if first attempt fails and time remains", async () => {
-  const envelope = clone();
-  envelope.state.legalMoves = null;
-  let attempts = 0;
-  const handler = app({
-    fetch: async () => {
-      attempts++;
-      if (attempts === 1) {
-        return new Response("server error", { status: 500 });
-      }
-      return Response.json({ ...envelope.state, legalMoves: { e2e3: {} } });
-    },
-  });
-  const res = await handler(request(envelope));
-  assert.equal(res.status, 200);
-  assert.equal(attempts, 2);
-});
-
-test("fetch retry on network error recovers before deadline", async () => {
-  const envelope = clone();
-  envelope.state.legalMoves = null;
-  let attempts = 0;
-  const handler = app({
-    fetch: async () => {
-      attempts++;
-      if (attempts === 1) {
-        throw new TypeError("network failed");
-      }
-      return Response.json({ ...envelope.state, legalMoves: { e2e3: {} } });
-    },
-  });
-  const res = await handler(request(envelope));
-  assert.equal(res.status, 200);
-  assert.equal(attempts, 2);
-});
-
-test("fetch does not retry when stale_context is encountered", async () => {
-  const envelope = clone();
-  envelope.state.legalMoves = null;
-  let attempts = 0;
-  const handler = app({
-    fetch: async () => {
-      attempts++;
-      return Response.json({
-        ...envelope.state,
-        version: 999, // stale version
-        legalMoves: { e2e3: {} },
-      });
-    },
-  });
-  await error(await handler(request(envelope)), 409, "stale_context");
-  assert.equal(attempts, 1);
-});
-
-test("fetch retry does not run if deadline expired", async () => {
-  const envelope = clone();
-  envelope.state.legalMoves = null;
-  let attempts = 0;
-  const handler = app({
-    limits: { ...limits, timeoutMs: 30 },
-    fetch: async () => {
-      attempts++;
+for (const [desc, mock, expectedCode, expectedStatus, maxCalls] of [
+  [
+    "stale_context",
+    (env) =>
+      Response.json({ ...env.state, version: 999, legalMoves: { e2e3: {} } }),
+    "stale_context",
+    409,
+    1,
+  ],
+  [
+    "expired deadline",
+    async () => {
       await delay(40);
-      return new Response("failed", { status: 503 });
+      return new Response("err", { status: 503 });
     },
+    "deadline_exceeded",
+    504,
+    1,
+  ],
+]) {
+  test(`fetch does not retry on non-retryable failure (${desc})`, async () => {
+    const envelope = clone();
+    envelope.state.legalMoves = null;
+    let calls = 0;
+    const h = app({
+      limits: { ...limits, timeoutMs: 30 },
+      fetch: async () => {
+        calls++;
+        return mock(envelope);
+      },
+    });
+    await error(await h(request(envelope)), expectedStatus, expectedCode);
+    assert.equal(calls, maxCalls);
   });
-  await error(await handler(request(envelope)), 504, "deadline_exceeded");
-  assert.equal(attempts, 1);
-});
+}
 for (const [name, change] of [
   [
     "wrong seat",

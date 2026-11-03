@@ -246,25 +246,28 @@ export function createWebhookHandler(
             limits.maxTreeDepth,
           );
         };
-        try {
-          legal = await fetchTree();
-        } catch (error) {
-          check();
-          if (error instanceof Failure && error.code === "stale_context")
-            throw error;
-          // Retry the fetch once if time remains before the deadline.
+        let lastError: unknown;
+        let fetchedTree: MoveTree | null = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
           try {
-            legal = await fetchTree();
-          } catch (retryError) {
+            fetchedTree = await fetchTree();
+            break;
+          } catch (err) {
             check();
-            if (
-              retryError instanceof Failure &&
-              retryError.code === "stale_context"
-            )
-              throw retryError;
-            throw new Failure("missing_legal_moves", 503);
+            if (err instanceof Failure && err.code === "stale_context")
+              throw err;
+            lastError = err;
           }
         }
+        if (!fetchedTree) {
+          if (
+            lastError instanceof Failure &&
+            lastError.code === "stale_context"
+          )
+            throw lastError;
+          throw new Failure("missing_legal_moves", 503);
+        }
+        legal = fetchedTree;
       } else
         legal = tree(
           state.legalMoves,
