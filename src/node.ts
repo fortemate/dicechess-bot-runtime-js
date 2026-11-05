@@ -11,12 +11,11 @@ function extractHeaders(rawHeaders: string[]): Headers {
   return headers;
 }
 
-function resolveRequestUrl(url: string | undefined): URL {
-  const target = url ?? "/";
-  const absolute = target.startsWith("/") ? undefined : new URL(target);
+function resolveRequestUrl(url = "/"): URL {
+  const absolute = url.startsWith("/") ? undefined : new URL(url);
   if (absolute && !["http:", "https:"].includes(absolute.protocol))
     throw new TypeError("Unsupported HTTP request target");
-  const path = absolute ? absolute.pathname + absolute.search : target;
+  const path = absolute ? absolute.pathname + absolute.search : url;
   return new URL("http://localhost" + path);
 }
 

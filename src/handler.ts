@@ -159,19 +159,20 @@ async function fetchLegalMoves(
       throw new Failure("stale_context", 409);
     return tree(payload.legalMoves, limits.maxTreeNodes, limits.maxTreeDepth);
   };
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  try {
+    return await singleFetch();
+  } catch (err) {
+    check();
+    if (err instanceof Failure && err.code === "stale_context") throw err;
     try {
       return await singleFetch();
-    } catch (err) {
+    } catch (retryErr) {
       check();
-      if (err instanceof Failure && err.code === "stale_context") throw err;
-      lastError = err;
+      if (retryErr instanceof Failure && retryErr.code === "stale_context")
+        throw retryErr;
+      throw new Failure("missing_legal_moves", 503);
     }
   }
-  if (lastError instanceof Failure && lastError.code === "stale_context")
-    throw lastError;
-  throw new Failure("missing_legal_moves", 503);
 }
 
 function validateTurnMoves(
