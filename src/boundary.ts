@@ -37,7 +37,7 @@ export function json(bytes: Uint8Array): Record<string, unknown> {
             typeof value === "number" &&
             !/^(0|[1-9]\d*)$/.test(context?.source ?? "")
           )
-            return NaN;
+            return Number.NaN;
           return value;
         },
       ),
