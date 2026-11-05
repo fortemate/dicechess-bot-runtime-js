@@ -132,17 +132,21 @@ export async function publishVerified(
   } catch (error) {
     publishError = error;
   }
-  for (let attempt = 0; attempt < 12; attempt++) {
+  const pollRegistry = async (attemptsRemaining) => {
+    if (attemptsRemaining <= 0) return null;
     const found = await lookup(manifest.version);
-    if (found !== null) {
-      assert.equal(
-        found,
-        manifest.integrity,
-        "Registry archive differs from tested archive",
-      );
-      return "Published version integrity verified";
-    }
-    if (attempt < 11) await wait();
+    if (found !== null) return found;
+    if (attemptsRemaining > 1) await wait();
+    return pollRegistry(attemptsRemaining - 1);
+  };
+  const verified = await pollRegistry(12);
+  if (verified !== null) {
+    assert.equal(
+      verified,
+      manifest.integrity,
+      "Registry archive differs from tested archive",
+    );
+    return "Published version integrity verified";
   }
   throw new Error(
     "Publication unconfirmed; it may have succeeded. Inspect registry before retrying; retain this artifact.",

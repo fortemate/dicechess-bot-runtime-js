@@ -11,7 +11,7 @@ import { createNodeListener } from "@fortemate/dicechess-bot-runtime/node";
 declare const options: WebhookHandlerOptions;
 const handler: (request: Request) => Promise<Response> =
   createWebhookHandler(options);
-void createNodeListener(handler);
+const _listener = createNodeListener(handler);
 
 const tree: MoveTree = { e2e4: { g1f3: {} } };
 const turn: TurnContext = {
@@ -29,6 +29,7 @@ const control: DecisionControl = {
 };
 const asyncStrategy: BotStrategy = {
   async onTurn(context, request) {
+    await Promise.resolve();
     request.signal.throwIfAborted();
     if (context.legalMoves === null)
       throw new Error("Fixture moves unavailable");
@@ -39,21 +40,28 @@ const asyncStrategy: BotStrategy = {
   },
 };
 const syncStrategy: BotStrategy = { onTurn: () => ({ moves: ["e2e4"] }) };
-void asyncStrategy.onTurn(turn, control);
-void syncStrategy.onTurn(turn, control);
+const _asyncPromise = asyncStrategy.onTurn(turn, control);
+const _syncResult = syncStrategy.onTurn(turn, control);
 const unavailable: TurnContext = { ...turn, legalMoves: null };
-void unavailable;
 // @ts-expect-error Contexts cannot mutate a delivered tree.
 tree.e2e4 = {};
 // @ts-expect-error The seat is not a free-form string.
 const invalidSeat: TurnContext = { ...turn, seat: "white" };
-void invalidSeat;
 declare const draw: DrawDecisionContext;
 // @ts-expect-error Pre-roll draw contexts expose no legal moves.
-void draw.legalMoves;
+const _drawLegalMoves = draw.legalMoves;
 const invalidDraw: BotStrategy = {
   onTurn: () => ({ moves: [] }),
   // @ts-expect-error Draw actions must say whether they accept.
   onDrawDecision: () => ({}),
 };
-void invalidDraw;
+
+export {
+  _listener,
+  _asyncPromise,
+  _syncResult,
+  unavailable,
+  invalidSeat,
+  _drawLegalMoves,
+  invalidDraw,
+};
